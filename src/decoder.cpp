@@ -8,6 +8,7 @@ Adafruit_LiquidCrystal lcd(0);
 #define LETTER_SPACE ' '
 #define DOT '.'
 #define DASH '-'
+# define ILLEGAL '#'
 
 #define T 200
 
@@ -69,7 +70,7 @@ public:
             current = (sequence[pos] == DOT) ? current->dot : current->dash;
             if (sequence[pos] != WHITESPACE) pos++;
         }
-        return current ? current->character : '#';
+        return current ? current->character : ILLEGAL;
     }
 
 private:
