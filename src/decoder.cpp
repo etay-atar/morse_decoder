@@ -26,94 +26,102 @@ const int longDuration = 3 * shortDuration;  // Duration threshold for long puls
 const int spaceDuration = 7 * shortDuration; // Duration threshold for space
 const int stopDuration = 3 * spaceDuration;  // Duration threshold for stop
 
-// Morse code tree node structure
-
-typedef struct MorseNode
+// Binary trie of Morse code: each node is one more dot/dash symbol deep,
+// and holds the decoded character once a full code has been matched.
+class MorseTree
 {
-    char character;
-    struct MorseNode *dot;  // Pointer to the next node for a dot
-    struct MorseNode *dash; // Pointer to the next node for a dash
-} MorseNode;
-MorseNode* newNode(char ch);
-void insertCode(MorseNode *root, const char *code, char ch);
-MorseNode* buildMorseTree();
-
-// Create a new MorseNode
-MorseNode *newNode(char ch)
-{
-    MorseNode *node = (MorseNode *)malloc(sizeof(MorseNode));
-    node->character = ch;
-    node->dot = NULL;
-    node->dash = NULL;
-    return node;
-}
-
-// Insert a character into the Morse code tree based on its Morse code representation
-void insertCode(MorseNode *root, const char *code, char ch)
-{
-    MorseNode *current = root;
-    for (const char *p = code; *p; p++)
+public:
+    MorseTree()
     {
-        if (*p == '.')
-        {
-            if (!current->dot)
-                current->dot = newNode('\0');
-            current = current->dot;
-        }
-        else if (*p == '-')
-        {
-            if (!current->dash)
-                current->dash = newNode('\0');
-            current = current->dash;
-        }
+        root = new Node('\0');
+        insertCode(".-", 'A');
+        insertCode("-...", 'B');
+        insertCode("-.-.", 'C');
+        insertCode("-..", 'D');
+        insertCode(".", 'E');
+        insertCode("..-.", 'F');
+        insertCode("--.", 'G');
+        insertCode("....", 'H');
+        insertCode("..", 'I');
+        insertCode(".---", 'J');
+        insertCode("-.-", 'K');
+        insertCode(".-..", 'L');
+        insertCode("--", 'M');
+        insertCode("-.", 'N');
+        insertCode("---", 'O');
+        insertCode(".--.", 'P');
+        insertCode("--.-", 'Q');
+        insertCode(".-.", 'R');
+        insertCode("...", 'S');
+        insertCode("-", 'T');
+        insertCode("..-", 'U');
+        insertCode("...-", 'V');
+        insertCode(".--", 'W');
+        insertCode("-..-", 'X');
+        insertCode("-.--", 'Y');
+        insertCode("--..", 'Z');
+        insertCode("-----", '0');
+        insertCode(".----", '1');
+        insertCode("..---", '2');
+        insertCode("...--", '3');
+        insertCode("....-", '4');
+        insertCode(".....", '5');
+        insertCode("-....", '6');
+        insertCode("--...", '7');
+        insertCode("---..", '8');
+        insertCode("----.", '9');
     }
-    current->character = ch;
-}
 
-// Build the Morse code tree
-MorseNode *buildMorseTree()
-{
-    MorseNode *root = newNode('\0');
-    insertCode(root, ".-", 'A');
-    insertCode(root, "-...", 'B');
-    insertCode(root, "-.-.", 'C');
-    insertCode(root, "-..", 'D');
-    insertCode(root, ".", 'E');
-    insertCode(root, "..-.", 'F');
-    insertCode(root, "--.", 'G');
-    insertCode(root, "....", 'H');
-    insertCode(root, "..", 'I');
-    insertCode(root, ".---", 'J');
-    insertCode(root, "-.-", 'K');
-    insertCode(root, ".-..", 'L');
-    insertCode(root, "--", 'M');
-    insertCode(root, "-.", 'N');
-    insertCode(root, "---", 'O');
-    insertCode(root, ".--.", 'P');
-    insertCode(root, "--.-", 'Q');
-    insertCode(root, ".-.", 'R');
-    insertCode(root, "...", 'S');
-    insertCode(root, "-", 'T');
-    insertCode(root, "..-", 'U');
-    insertCode(root, "...-", 'V');
-    insertCode(root, ".--", 'W');
-    insertCode(root, "-..-", 'X');
-    insertCode(root, "-.--", 'Y');
-    insertCode(root, "--..", 'Z');
-    insertCode(root, "-----", '0');
-    insertCode(root, ".----", '1');
-    insertCode(root, "..---", '2');
-    insertCode(root, "...--", '3');
-    insertCode(root, "....-", '4');
-    insertCode(root, ".....", '5');
-    insertCode(root, "-....", '6');
-    insertCode(root, "--...", '7');
-    insertCode(root, "---..", '8');
-    insertCode(root, "----.", '9');
-    return root;
-}
+    // Decodes one Morse letter out of `sequence`, starting at `pos`.
+    // Consumes DOT/DASH symbols until a SPACE or `length` is reached,
+    // advancing `pos` past everything consumed.
+    // Returns the decoded character, or '\0' if the code isn't recognized.
+    char decodeLetter(const char *sequence, const unsigned int length, unsigned int &pos) const
+    {
+        Node *current = root;
+        while (current && pos < length && sequence[pos] != SPACE)
+        {
+            current = (sequence[pos] == DOT) ? current->dot : current->dash;
+            pos++;
+        }
+        return current ? current->character : '\0';
+    }
 
-MorseNode *morseTreeRoot;
+private:
+    struct Node
+    {
+        char character;
+        Node *dot;
+        Node *dash;
+
+        explicit Node(const char ch) : character(ch), dot(nullptr), dash(nullptr) {}
+    };
+
+    Node *root;
+
+    // Insert a character into the tree based on its Morse code representation
+    void insertCode(const char *code, const char ch) const {
+        Node *current = root;
+        for (const char *p = code; *p; p++)
+        {
+            if (*p == DOT)
+            {
+                if (!current->dot)
+                    current->dot = new Node('\0');
+                current = current->dot;
+            }
+            else if (*p == DASH)
+            {
+                if (!current->dash)
+                    current->dash = new Node('\0');
+                current = current->dash;
+            }
+        }
+        current->character = ch;
+    }
+};
+
+MorseTree morseTree;
 
 void setup()
 {
@@ -149,8 +157,6 @@ void setup()
     // 2,000 ticks per millisecond / 256 (max timer count) = 7.8125 overflows per millisecond
     // So we can count 8 overflows to approximate 1 millisecond
 
-    morseTreeRoot = buildMorseTree();
-
     sei(); // Enable global interrupts
 
     // 1. Boot up the screen
@@ -159,7 +165,7 @@ void setup()
     lcd.clear();
   	lcd.print("Ready to print...");
     // 2. Display decoded Morse text buffer when available
-    displayArrayOnLCD(morseSequence, ARRAY_SIZE);
+    void displayArrayOnLCD(char *textArray, int length);
 }
 
 
@@ -221,27 +227,45 @@ void morseDecode(char *convertedSequence, unsigned int length)
         }
         else
         {
-            MorseNode *current = morseTreeRoot;
-            while (j < length && convertedSequence[j] != SPACE)
+            char decoded = morseTree.decodeLetter(convertedSequence, length, j);
+            if (decoded != '\0')
             {
-                if (convertedSequence[j] == DOT)
-                {
-                    current = current->dot;
-                }
-                else if (convertedSequence[j] == DASH)
-                {
-                    current = current->dash;
-                }
-                j++;
-            }
-            if (current && current->character != '\0')
-            {
-                morseSequence[k] = current->character;
+                morseSequence[k] = decoded;
                 k++;
             }
         }
     }
     morseSequence[k] = '\0'; // Null-terminate the string
+}
+
+// Take an aray of text(chars)and display them on the LCD
+void displayArrayOnLCD(char *textArray, const int length = ARRAY_SIZE) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+
+    int column = 0;
+    int row = 0;
+
+    for (int j = 0; j < length; j++) {
+        // Stop if we hit an empty/null character
+        if (textArray[j] == '\0') {
+            break;
+        }
+
+        lcd.print(textArray[j]);
+        column++;
+
+        // Wrap to the second line if the first line is full
+        if (column == 16 && row == 0) {
+            row = 1;
+            column = 0;
+            lcd.setCursor(column, row);
+        }
+        // Stop printing if the entire screen (32 chars) is full
+        else if (column == 16 && row == 1) {
+            break;
+        }
+    }
 }
 
 ISR(INT0_vect)
@@ -285,35 +309,5 @@ ISR(TIMER2_OVF_vect)
     {
         timerCount = 0;
         msCount++;
-    }
-}
-
-// Take an aray of text(chars)and display them on the LCD
-void displayArrayOnLCD(char *textArray, int length) {
-    lcd.clear();         
-    lcd.setCursor(0, 0); 
-    
-    int column = 0;
-    int row = 0;
-    
-    for (int j = 0; j < length; j++) {
-        // Stop if we hit an empty/null character
-        if (textArray[j] == '\0') {
-            break; 
-        }
-        
-        lcd.print(textArray[j]);
-        column++;
-        
-        // Wrap to the second line if the first line is full
-        if (column == 16 && row == 0) {
-            row = 1;
-            column = 0;
-            lcd.setCursor(column, row);
-        } 
-        // Stop printing if the entire screen (32 chars) is full
-        else if (column == 16 && row == 1) {
-            break; 
-        }
     }
 }
