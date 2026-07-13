@@ -267,8 +267,7 @@ void finishRecording() {
 
     // Reset morse sequence
     while (i > 0) {
-        morseSequence[i] = '\0';
-        i--;
+        morseSequence[--i] = '\0';
     }
     resetTimer();
     display = true;
