@@ -4,7 +4,7 @@
 // Initialise the LCD
 Adafruit_LiquidCrystal lcd(0);
 
-#define SPACE ' '
+#define WHITESPACE ' '
 #define DOT '.'
 #define DASH '-'
 
@@ -15,8 +15,13 @@ Adafruit_LiquidCrystal lcd(0);
 unsigned int timerCount = 0;
 unsigned int msCount = 0;
 
-char morseSequence[ARRAY_SIZE]; // Array of morse code symbols
-char decodedText[ARRAY_SIZE]; // Converted morse code sequence as a string
+volatile bool display = false;
+
+// unsigned int rawSequence[ARRAY_SIZE * 2]; // Raw durations for debugging purposes
+char morseSequence[ARRAY_SIZE] = {}; // Array of morse code symbols
+char decodedText[ARRAY_SIZE] = {}; // Converted morse code sequence as a string
+
+char *displayText = nullptr;
 
 unsigned int i = 0;
 
@@ -60,7 +65,7 @@ public:
     // Returns the decoded character, or '\0' if the code isn't recognized.
     char decodeLetter(const char *sequence, const unsigned int length, unsigned int &pos) const {
         Node *current = root;
-        while (current && pos < length && sequence[pos] != SPACE) {
+        while (current && pos < length && sequence[pos] != WHITESPACE) {
             current = (sequence[pos] == DOT) ? current->dot : current->dash;
             pos++;
         }
@@ -123,7 +128,8 @@ void setup() {
 
     TCNT2 = 0; // Initialize counter value to 0
 
-    TCCR2B &= ~((1 << CS22) | (1 << CS21) | (1 << CS20)); // Clear prescaler bits
+    TCCR2B &= ~((1 << CS22) | (1 << CS21)); // Clear prescaler bits
+    TCCR2B |= (1 << CS20);
     // No prescaler
 
     // 16,000,000 / 1000 = 16,000 ticks per millisecond
@@ -144,42 +150,31 @@ void setup() {
 }
 
 
-void loop() {
-}
-
 // Reset the timer and millisecond counters
 void resetTimer() {
     msCount = 0;
     timerCount = 0;
+    TCNT2 = 0;
 }
 
-char discriminateSignal(const unsigned int duration, const bool isPulse) {
-    if (isPulse) {
-        if (duration < (2 * T)) {
-            return DOT;
-        }
-        if (duration < (5 * T)) {
-            return DASH;
-        }
-        return '\0'; // Invalid signal or stop
+char discriminateSignal(const unsigned int duration) {
+    if (duration < (2 * T)) {
+        return DOT;
     }
-    if (duration >= (5 * T) && duration < (21 * T)) {
-        return SPACE;
+    if (duration < (5 * T)) {
+        return DASH;
     }
-    if (duration >= (21 * T)) {
-        return '\0'; // Stop signal
-    }
-    return '\0'; // Invalid signal
+    return '\0'; // Invalid signal or stop
 }
 
 void morseDecode(const char *sequence, const unsigned int length) {
     int k = 0;
     for (unsigned int j = 0; j < length; j++) {
-        if (sequence[j] == SPACE) {
+        if (sequence[j] == WHITESPACE) {
             decodedText[k] = ' ';
             k++;
         } else {
-            char decoded = morseTree.decodeLetter(sequence, length - j, j);
+            char decoded = morseTree.decodeLetter(sequence, length, j);
             if (decoded != '\0') {
                 decodedText[k] = decoded;
                 k++;
@@ -190,14 +185,14 @@ void morseDecode(const char *sequence, const unsigned int length) {
 }
 
 // Take an aray of text(chars)and display them on the LCD
-void displayArrayOnLCD(char *textArray, const int length = ARRAY_SIZE) {
+void displayArrayOnLCD(const char *textArray, const int length = ARRAY_SIZE) {
     lcd.clear();
     lcd.setCursor(0, 0);
 
     int column = 0;
     int row = 0;
 
-    for (int j = 0; j < length; j++) {
+    for (unsigned int j = 0; j < length; j++) {
         // Stop if we hit an empty/null character
         if (textArray[j] == '\0') {
             break;
@@ -219,26 +214,47 @@ void displayArrayOnLCD(char *textArray, const int length = ARRAY_SIZE) {
     }
 }
 
-ISR(INT0_vect) {
+void finishRecording() {
+    morseDecode(morseSequence, i);
+    displayText = decodedText;
+
+    // Reset morse sequence
+    while (i > 0) {
+        morseSequence[i] = '\0';
+        i--;
+    }
     resetTimer();
+    display = true;
+}
+
+ISR(INT0_vect) {
     // Rising Edge
     if (PIND & (1 << PIND2)) {
-        PORTB |= (1 << PORTB5);
-        tone(8, 800);
-        morseSequence[i] = discriminateSignal(msCount, true);
+        PORTB |= (1 << PORTB0 | 1 << PORTB5); // Activate LED and buzzer
+
+        if (msCount >= (5 * T) && msCount < (21 * T) && i > 0) {
+            morseSequence[i] = WHITESPACE;
+            i++;
+        }
+        if (msCount >= (21 * T)) {
+            morseSequence[i] = '\0'; // Stop signal
+            finishRecording();
+        }
     }
+
     // Falling Edge
     else {
-        morseSequence[i] = discriminateSignal(msCount, false);
-        PORTB &= ~(1 << PORTB5);
-        noTone(8);
+        morseSequence[i] = discriminateSignal(msCount);
+        PORTB &= ~(1 << PORTB0 | 1 << PORTB5); // Deactivate LED and buzzer
+        if (morseSequence[i] != '\0') {
+            displayText = morseSequence;
+            display = true;
+            i++;
+        } else {
+            finishRecording();
+        }
     }
-    msCount = 0;
-    if (morseSequence[i] != '\0') {
-        i++;
-    } else {
-        // Decode
-    }
+    resetTimer();
 }
 
 ISR(TIMER2_OVF_vect) {
@@ -247,5 +263,15 @@ ISR(TIMER2_OVF_vect) {
     {
         timerCount = 0;
         msCount++;
+    }
+    if (msCount >= (21 * T) && morseSequence[0] != '\0') {
+        finishRecording();
+    }
+}
+
+void loop() {
+    if (display) {
+        displayArrayOnLCD(displayText);
+        display = false;
     }
 }
