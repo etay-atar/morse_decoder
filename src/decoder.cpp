@@ -69,7 +69,7 @@ public:
             current = (sequence[pos] == DOT) ? current->dot : current->dash;
             if (sequence[pos] != WHITESPACE) pos++;
         }
-        return current ? current->character : '\0';
+        return current ? current->character : '#';
     }
 
 private:
@@ -228,6 +228,39 @@ void displayArrayOnLCD(const char *textArray, const int length = ARRAY_SIZE) {
     }
 }
 
+void LCDDoublePrint(const char *str1, const char *str2, const int length = ARRAY_SIZE) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    int column = 0;
+
+
+    for (unsigned int j = 0; j < length; j++) {
+        // Stop if we hit an empty/null character
+        if (str1[j] == '\0') break;
+
+        lcd.print(str1[j]);
+        column++;
+
+        if (column == 16)
+            break;
+        lcd.setCursor(column, 0);
+    }
+
+
+    lcd.setCursor(0, 1);
+    column = 0;
+    for (unsigned int j = 0; j < length; j++) {
+        // Stop if we hit an empty/null character
+        if (str2[j] == '\0') break;
+
+        lcd.print(str2[j]);
+        column++;
+
+        if (column == 16)
+            lcd.setCursor(column, 1);
+    }
+}
+
 void finishRecording() {
     morseDecode(morseSequence, i);
     displayText = decodedText;
@@ -261,9 +294,9 @@ ISR(INT0_vect) {
         morseSequence[i] = discriminateSignal(msCount);
         PORTB &= ~(1 << PORTB0 | 1 << PORTB5); // Deactivate LED and buzzer
         if (morseSequence[i] != '\0') {
-            displayText = morseSequence;
             display = true;
             i++;
+            morseDecode(morseSequence, i);
         } else {
             finishRecording();
         }
@@ -285,7 +318,7 @@ ISR(TIMER2_OVF_vect) {
 
 void loop() {
     if (display) {
-        displayArrayOnLCD(displayText);
+        LCDDoublePrint(morseSequence, decodedText);
         display = false;
     }
 }
