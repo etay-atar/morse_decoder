@@ -4,7 +4,8 @@
 // Initialise the LCD
 Adafruit_LiquidCrystal lcd(0);
 
-#define WHITESPACE ' '
+#define WHITESPACE '/'
+#define LETTER_SPACE ' '
 #define DOT '.'
 #define DASH '-'
 
@@ -17,7 +18,6 @@ unsigned int msCount = 0;
 
 volatile bool display = false;
 
-// unsigned int rawSequence[ARRAY_SIZE * 2]; // Raw durations for debugging purposes
 char morseSequence[ARRAY_SIZE] = {}; // Array of morse code symbols
 char decodedText[ARRAY_SIZE] = {}; // Converted morse code sequence as a string
 
@@ -65,9 +65,9 @@ public:
     // Returns the decoded character, or '\0' if the code isn't recognized.
     char decodeLetter(const char *sequence, const unsigned int length, unsigned int &pos) const {
         Node *current = root;
-        while (current && pos < length && sequence[pos] != WHITESPACE) {
+        while (current && pos < length && sequence[pos] != WHITESPACE && sequence[pos] != LETTER_SPACE) {
             current = (sequence[pos] == DOT) ? current->dot : current->dash;
-            pos++;
+            if (sequence[pos] != WHITESPACE) pos++;
         }
         return current ? current->character : '\0';
     }
@@ -169,16 +169,30 @@ char discriminateSignal(const unsigned int duration) {
 
 void morseDecode(const char *sequence, const unsigned int length) {
     int k = 0;
-    for (unsigned int j = 0; j < length; j++) {
+    unsigned int j = 0;
+    while (j < length) {
         if (sequence[j] == WHITESPACE) {
-            decodedText[k] = ' ';
-            k++;
-        } else {
-            char decoded = morseTree.decodeLetter(sequence, length, j);
-            if (decoded != '\0') {
-                decodedText[k] = decoded;
-                k++;
-            }
+            decodedText[k++] = ' ';
+            j++;
+            continue;
+        }
+        if (sequence[j] == LETTER_SPACE) {
+            j++;
+            continue;
+        }
+
+        const char decoded = morseTree.decodeLetter(sequence, length, j);
+        if (decoded != '\0') {
+            decodedText[k++] = decoded;
+        }
+
+        // decodeLetter stops right on the separator that ended the letter;
+        // consume it explicitly here rather than relying on a loop increment.
+        if (j < length && sequence[j] == WHITESPACE) {
+            decodedText[k++] = ' ';
+            j++;
+        } else if (j < length && sequence[j] == LETTER_SPACE) {
+            j++;
         }
     }
     decodedText[k] = '\0'; // Null-terminate the string
@@ -232,10 +246,10 @@ ISR(INT0_vect) {
     if (PIND & (1 << PIND2)) {
         PORTB |= (1 << PORTB0 | 1 << PORTB5); // Activate LED and buzzer
 
-        if (msCount >= (5 * T) && msCount < (21 * T) && i > 0) {
-            morseSequence[i] = WHITESPACE;
-            i++;
-        }
+        if (msCount >= (2.5 * T) && msCount < (7 * T) && i > 0 && morseSequence[i - 1] != ' ')
+            morseSequence[i++] = LETTER_SPACE;
+        if (msCount >= (7 * T) && msCount < (21 * T) && i > 0)
+            morseSequence[i++] = WHITESPACE;
         if (msCount >= (21 * T)) {
             morseSequence[i] = '\0'; // Stop signal
             finishRecording();
