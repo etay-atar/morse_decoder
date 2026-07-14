@@ -6,14 +6,14 @@
       "type": "wokwi-arduino-uno",
       "id": "uno1",
       "top": 255.8,
-      "left": 11.25,
+      "left": 10.25,
       "attrs": {}
     },
     {
       "type": "wokwi-lcd1602",
       "id": "lcd1",
       "top": 60,
-      "left": 276.65,
+      "left": 275.65,
       "attrs": {
         "pins": "i2c"
       }
@@ -22,7 +22,7 @@
       "type": "wokwi-led",
       "id": "led1",
       "top": 126.8,
-      "left": 15.65,
+      "left": 14.65,
       "attrs": {
         "color": "red"
       }
@@ -31,7 +31,7 @@
       "type": "wokwi-buzzer",
       "id": "bz1",
       "top": 123.2,
-      "left": 71.25,
+      "left": 70.25,
       "attrs": {
         "volume": "0.1"
       }
@@ -40,7 +40,7 @@
       "type": "wokwi-resistor",
       "id": "r1",
       "top": 393,
-      "left": 375.8,
+      "left": 374.8,
       "rotate": 270,
       "attrs": {
         "value": "220"
@@ -50,7 +50,7 @@
       "type": "wokwi-resistor",
       "id": "r2",
       "top": 201,
-      "left": 11,
+      "left": 10,
       "rotate": 270,
       "attrs": {
         "value": "220"
@@ -60,7 +60,7 @@
       "type": "wokwi-resistor",
       "id": "r3",
       "top": 211.15,
-      "left": 136.65,
+      "left": 135.65,
       "rotate": 270,
       "attrs": {
         "value": "100"
@@ -70,7 +70,7 @@
       "type": "wokwi-pushbutton",
       "id": "btn1",
       "top": 319,
-      "left": 405.45,
+      "left": 404.45,
       "attrs": {
         "color": "green",
         "xray": "1",
@@ -114,14 +114,6 @@
     [
       "btn1:1.l",
       "uno1:2",
-      "green",
-      [
-        "h0"
-      ]
-    ],
-    [
-      "btn1:2.l",
-      "r1:2",
       "green",
       [
         "h0"
@@ -178,6 +170,14 @@
     [
       "lcd1:SCL",
       "uno1:A5",
+      "green",
+      [
+        "h0"
+      ]
+    ],
+    [
+      "r1:2",
+      "btn1:2.r",
       "green",
       [
         "h0"
