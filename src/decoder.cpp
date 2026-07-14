@@ -11,12 +11,19 @@ Adafruit_LiquidCrystal lcd(0);
 
 #define T 200
 
-#define ARRAY_SIZE 100
+#define ARRAY_SIZE 200
+
+#define GREETING_MORSE "-- --- .-. ... ."
+#define GREETING_TEXT "MORSE"
+
+#define LCD_ROWS 2
+#define LCD_COLS 16
 
 unsigned int timerCount = 0;
 unsigned int msCount = 0;
 
 volatile bool display = false;
+
 
 char morseSequence[ARRAY_SIZE] = {}; // Array of morse code symbols
 char decodedText[ARRAY_SIZE] = {}; // Converted morse code sequence as a string
@@ -169,12 +176,12 @@ void setup() {
     sei(); // Enable global interrupts
 
     // 1. Boot up the screen
-    lcd.begin(16, 2);
+    lcd.begin(LCD_COLS, LCD_ROWS);
     lcd.setBacklight(1);
     lcd.clear();
-    lcd.print("-- --- .-. ... .");
+    lcd.print(GREETING_MORSE);
     lcd.setCursor(0, 1);
-    lcd.print("MORSE");
+    lcd.print(GREETING_TEXT);
     // 2. Display decoded Morse text buffer when available
     void displayArrayOnLCD(char *str);
 }
@@ -229,40 +236,35 @@ void morseDecode(const char *sequence, const unsigned int length) {
 }
 
 // Take an aray of text(chars)and display them on the LCD
-void displayArrayOnLCD(const char *str) {
+void LCDPrintWrap(const char *str) {
     lcd.clear();
-    lcd.setCursor(0, 0);
 
     int column = 0;
     int row = 0;
 
     for (unsigned int j = 0; j < strlen(str); j++) {
         // Stop if we hit an empty/null character
-        if (str[j] == '\0') {
-            break;
-        }
+        if (str[j] == '\0') break;
 
         lcd.print(str[j]);
         column++;
 
-        // Wrap to the second line if the first line is full
-        if (column == 16 && row == 0) {
-            row = 1;
+        // Wrap to the next line if the current line is full
+        if (column == LCD_COLS && row < LCD_ROWS - 1) {
+            row++;
             column = 0;
-            lcd.setCursor(column, row);
+            lcd.setCursor(0, row);
         }
         // Stop printing if the entire screen (32 chars) is full
-        else if (column == 16 && row == 1) {
-            break;
-        }
+        else if (column == LCD_COLS && row == LCD_ROWS - 1) break;
     }
 }
 
 void LCDDoublePrint(const char *str1, const char *str2) {
     lcd.clear();
 
-    if (const unsigned int len1 = strlen(str1); len1 > 16)
-        str1 += len1 - (16 * sizeof(char)); // Tail str1 to last 16 chars
+    if (const unsigned int len1 = strlen(str1); len1 > LCD_COLS)
+        str1 += len1 - (LCD_COLS * sizeof(char)); // Tail str1
     lcd.print(str1);
 
     lcd.setCursor(0, 1);
@@ -283,35 +285,37 @@ void finishRecording() {
 
 // Button interrupt
 ISR(INT0_vect) {
-    // Rising Edge
     fin = false;
-    if (PIND & (1 << PIND2)) {
-        PORTB |= (1 << PORTB0 | 1 << PORTB5); // Activate LED and buzzer
-
-        if (msCount >= (2.5 * T) && msCount < (7 * T) && i > 0 && morseSequence[i - 1] != ' ')
-            morseSequence[i++] = LETTER_SPACE;
-        if (msCount >= (7 * T) && msCount < (21 * T) && i > 0)
-            morseSequence[i++] = WHITESPACE;
-        if (msCount >= (21 * T)) {
-            morseSequence[i] = '\0'; // Stop signal
-            finishRecording();
-        }
-    }
-
-    // Falling Edge
+    if (i >= ARRAY_SIZE) finishRecording();
     else {
-        morseSequence[i] = discriminateSignal(msCount);
-        PORTB &= ~(1 << PORTB0 | 1 << PORTB5); // Deactivate LED and buzzer
-        if (morseSequence[i] != '\0') {
-            display = true;
-            i++;
-            morseDecode(morseSequence, i);
-        } else {
-            finishRecording();
-        }
-    }
+        // Rising Edge
+        if (PIND & (1 << PIND2)) {
+            PORTB |= (1 << PORTB0 | 1 << PORTB5); // Activate LED and buzzer
 
-    resetTimer();
+            if (msCount >= (2.5 * T) && msCount < (7 * T) && i > 0 && morseSequence[i - 1] != ' ')
+                morseSequence[i++] = LETTER_SPACE;
+            if (msCount >= (7 * T) && msCount < (21 * T) && i > 0)
+                morseSequence[i++] = WHITESPACE;
+            if (msCount >= (21 * T)) {
+                morseSequence[i] = '\0'; // Stop signal
+                finishRecording();
+            }
+        }
+
+        // Falling Edge
+        else {
+            morseSequence[i] = discriminateSignal(msCount);
+            PORTB &= ~(1 << PORTB0 | 1 << PORTB5); // Deactivate LED and buzzer
+            if (morseSequence[i] != '\0') {
+                display = true;
+                i++;
+                morseDecode(morseSequence, i);
+            } else {
+                finishRecording();
+            }
+        }
+        resetTimer();
+    }
 }
 
 // Timer overflow interrupt service routine
@@ -330,7 +334,7 @@ ISR(TIMER2_OVF_vect) {
 
 void loop() {
     if (fin) {
-        displayArrayOnLCD(decodedText);
+        LCDPrintWrap(decodedText);
         fin = false;
     }
     if (display) {
