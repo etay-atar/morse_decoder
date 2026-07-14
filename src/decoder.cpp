@@ -57,6 +57,34 @@ public:
         insertCode("-..-", 'X');
         insertCode("-.--", 'Y');
         insertCode("--..", 'Z');
+        insertCode("-----", '0');
+        insertCode(".----", '1');
+        insertCode("..---", '2');
+        insertCode("...--", '3');
+        insertCode("....-", '4');
+        insertCode(".....", '5');
+        insertCode("-....", '6');
+        insertCode("--...", '7');
+        insertCode("---..", '8');
+        insertCode("----.", '9');
+        insertCode("..--..", '?');
+        insertCode("-.-.--", '!');
+        insertCode(".-.-.-", '.');
+        insertCode("--..--", ',');
+        insertCode("---...", ':');
+        insertCode("-....-", '-');
+        insertCode("-....-", '-');
+        insertCode("-..-.", '/');
+        insertCode("-...-", '=');
+        insertCode(".----.", '\'');
+        insertCode("-.--.", '(');
+        insertCode("-.--.-", ')');
+        insertCode(".-..-.", '"');
+        insertCode(".--.-.", '@');
+        insertCode("...-..-", '$');
+        insertCode(".-...", '&');
+        insertCode("-.-.-.", ';');
+        insertCode("..--.-", '_');
     }
 
     // Decodes one Morse letter out of `sequence`, starting at `pos`.
