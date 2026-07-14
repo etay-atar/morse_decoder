@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <Adafruit_LiquidCrystal.h>
 
 // Initialise the LCD
