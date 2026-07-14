@@ -144,7 +144,9 @@ void setup() {
     lcd.begin(16, 2);
     lcd.setBacklight(1);
     lcd.clear();
-    lcd.print("Ready to print...");
+    lcd.print("-- --- .-. ... .");
+    lcd.setCursor(0, 1);
+    lcd.print("MORSE");
     // 2. Display decoded Morse text buffer when available
     void displayArrayOnLCD(char *str);
 }
