@@ -99,7 +99,7 @@ public:
     // Decodes one Morse letter out of `sequence`, starting at `pos`.
     // Consumes DOT/DASH symbols until a SPACE or `length` is reached,
     // advancing `pos` past everything consumed.
-    // Returns the decoded character, or '\0' if the code isn't recognised.
+    // Returns the decoded character, or '#' if the code isn't recognised.
     char decodeLetter(const char *sequence, const unsigned int length, unsigned int &pos) const {
         const Node *current = root;
         while (current && pos < length && sequence[pos] != WHITESPACE && sequence[pos] != LETTER_SPACE) {
@@ -271,6 +271,8 @@ void LCDDoublePrint(const char *str1, const char *str2) {
     lcd.print(str1);
 
     lcd.setCursor(0, 1);
+    if (const unsigned int len2 = strlen(str2); len2 > LCD_COLS)
+        str2 += len2 - (LCD_COLS * sizeof(char)); // Tail str2
     lcd.print(str2);
 }
 
