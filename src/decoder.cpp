@@ -3,12 +3,14 @@
 // Initialise the LCD
 Adafruit_LiquidCrystal lcd(0);
 
+// Morse characters
 #define WHITESPACE '/'
 #define LETTER_SPACE ' '
 #define DOT '.'
 #define DASH '-'
 # define ILLEGAL '#'
 
+// Time unit (1 dit)
 #define T 200
 
 #define ARRAY_SIZE 200
@@ -97,13 +99,14 @@ public:
     // Decodes one Morse letter out of `sequence`, starting at `pos`.
     // Consumes DOT/DASH symbols until a SPACE or `length` is reached,
     // advancing `pos` past everything consumed.
-    // Returns the decoded character, or '\0' if the code isn't recognized.
+    // Returns the decoded character, or '\0' if the code isn't recognised.
     char decodeLetter(const char *sequence, const unsigned int length, unsigned int &pos) const {
-        Node *current = root;
+        const Node *current = root;
         while (current && pos < length && sequence[pos] != WHITESPACE && sequence[pos] != LETTER_SPACE) {
             current = (sequence[pos] == DOT) ? current->dot : current->dash;
             if (sequence[pos] != WHITESPACE) pos++;
         }
+        if (!current) while (pos < length && sequence[pos] != WHITESPACE && sequence[pos] != LETTER_SPACE) pos++;
         return current ? current->character : ILLEGAL;
     }
 
@@ -161,7 +164,7 @@ void setup() {
     TCCR2A = 0;
     TCCR2B = 0;
 
-    TCNT2 = 0; // Initialize counter value to 0
+    TCNT2 = 0; // Initialise counter value to 0
 
     TCCR2B &= ~((1 << CS22) | (1 << CS21)); // Clear prescaler bits
     TCCR2B |= (1 << CS20);
@@ -182,8 +185,6 @@ void setup() {
     lcd.print(GREETING_MORSE);
     lcd.setCursor(0, 1);
     lcd.print(GREETING_TEXT);
-    // 2. Display decoded Morse text buffer when available
-    void displayArrayOnLCD(char *str);
 }
 
 
@@ -204,10 +205,11 @@ char discriminateSignal(const unsigned int duration) {
     return '\0'; // Invalid signal or stop
 }
 
+// Decode morse string
 void morseDecode(const char *sequence, const unsigned int length) {
     int k = 0;
     unsigned int j = 0;
-    while (j < length) {
+    while (j < length - 1) {
         if (sequence[j] == WHITESPACE) {
             decodedText[k++] = ' ';
             j++;
@@ -260,6 +262,7 @@ void LCDPrintWrap(const char *str) {
     }
 }
 
+// Print both morse and translation
 void LCDDoublePrint(const char *str1, const char *str2) {
     lcd.clear();
 
@@ -271,6 +274,7 @@ void LCDDoublePrint(const char *str1, const char *str2) {
     lcd.print(str2);
 }
 
+// Display result and reset
 void finishRecording() {
     morseDecode(morseSequence, i);
 
