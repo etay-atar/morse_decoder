@@ -147,7 +147,7 @@ void setup() {
     lcd.clear();
     lcd.print("Ready to print...");
     // 2. Display decoded Morse text buffer when available
-    void displayArrayOnLCD(char *textArray, int length);
+    void displayArrayOnLCD(char *textArray, unsigned int length);
 }
 
 
@@ -200,7 +200,7 @@ void morseDecode(const char *sequence, const unsigned int length) {
 }
 
 // Take an aray of text(chars)and display them on the LCD
-void displayArrayOnLCD(const char *textArray, const int length = ARRAY_SIZE) {
+void displayArrayOnLCD(const char *textArray, const unsigned int length = ARRAY_SIZE) {
     lcd.clear();
     lcd.setCursor(0, 0);
 
@@ -229,7 +229,7 @@ void displayArrayOnLCD(const char *textArray, const int length = ARRAY_SIZE) {
     }
 }
 
-void LCDDoublePrint(const char *str1, const char *str2, const int length = ARRAY_SIZE) {
+void LCDDoublePrint(const char *str1, const char *str2, const unsigned int length = ARRAY_SIZE) {
     lcd.clear();
     lcd.setCursor(0, 0);
     int column = 0;
