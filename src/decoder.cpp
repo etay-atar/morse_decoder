@@ -147,7 +147,7 @@ void setup() {
     lcd.clear();
     lcd.print("Ready to print...");
     // 2. Display decoded Morse text buffer when available
-    void displayArrayOnLCD(char *textArray, unsigned int length);
+    void displayArrayOnLCD(char *str);
 }
 
 
@@ -200,20 +200,20 @@ void morseDecode(const char *sequence, const unsigned int length) {
 }
 
 // Take an aray of text(chars)and display them on the LCD
-void displayArrayOnLCD(const char *textArray, const unsigned int length = ARRAY_SIZE) {
+void displayArrayOnLCD(const char *str) {
     lcd.clear();
     lcd.setCursor(0, 0);
 
     int column = 0;
     int row = 0;
 
-    for (unsigned int j = 0; j < length; j++) {
+    for (unsigned int j = 0; j < strlen(str); j++) {
         // Stop if we hit an empty/null character
-        if (textArray[j] == '\0') {
+        if (str[j] == '\0') {
             break;
         }
 
-        lcd.print(textArray[j]);
+        lcd.print(str[j]);
         column++;
 
         // Wrap to the second line if the first line is full
@@ -229,37 +229,13 @@ void displayArrayOnLCD(const char *textArray, const unsigned int length = ARRAY_
     }
 }
 
-void LCDDoublePrint(const char *str1, const char *str2, const unsigned int length = ARRAY_SIZE) {
+void LCDDoublePrint(const char *str1, const char *str2) {
     lcd.clear();
-    lcd.setCursor(0, 0);
-    int column = 0;
-
-
-    for (unsigned int j = 0; j < length; j++) {
-        // Stop if we hit an empty/null character
-        if (str1[j] == '\0') break;
-
-        lcd.print(str1[j]);
-        column++;
-
-        if (column == 16)
-            break;
-        lcd.setCursor(column, 0);
-    }
-
-
+    const unsigned int len1 = strlen(str1);
+    if (len1 > 16) str1 += len1 - (16 * sizeof(char)); // Tail str1 to last 16 chars
+    lcd.print(str1);
     lcd.setCursor(0, 1);
-    column = 0;
-    for (unsigned int j = 0; j < length; j++) {
-        // Stop if we hit an empty/null character
-        if (str2[j] == '\0') break;
-
-        lcd.print(str2[j]);
-        column++;
-
-        if (column == 16)
-            lcd.setCursor(column, 1);
-    }
+    lcd.print(str2);
 }
 
 void finishRecording() {
