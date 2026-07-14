@@ -232,9 +232,11 @@ void displayArrayOnLCD(const char *str) {
 
 void LCDDoublePrint(const char *str1, const char *str2) {
     lcd.clear();
-    const unsigned int len1 = strlen(str1);
-    if (len1 > 16) str1 += len1 - (16 * sizeof(char)); // Tail str1 to last 16 chars
+
+    if (const unsigned int len1 = strlen(str1); len1 > 16)
+        str1 += len1 - (16 * sizeof(char)); // Tail str1 to last 16 chars
     lcd.print(str1);
+
     lcd.setCursor(0, 1);
     lcd.print(str2);
 }
