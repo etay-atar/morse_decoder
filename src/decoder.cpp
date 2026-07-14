@@ -21,9 +21,9 @@ volatile bool display = false;
 char morseSequence[ARRAY_SIZE] = {}; // Array of morse code symbols
 char decodedText[ARRAY_SIZE] = {}; // Converted morse code sequence as a string
 
-char *displayText = nullptr;
-
 unsigned int i = 0;
+
+volatile bool fin = false;
 
 // Binary trie of Morse code: each node is one more dot/dash symbol deep,
 // and holds the decoded character once a full code has been matched.
@@ -243,18 +243,20 @@ void LCDDoublePrint(const char *str1, const char *str2) {
 
 void finishRecording() {
     morseDecode(morseSequence, i);
-    displayText = decodedText;
 
     // Reset morse sequence
     while (i > 0) {
         morseSequence[--i] = '\0';
     }
     resetTimer();
-    display = true;
+    fin = true;
+    display = false;
 }
 
+// Button interrupt
 ISR(INT0_vect) {
     // Rising Edge
+    fin = false;
     if (PIND & (1 << PIND2)) {
         PORTB |= (1 << PORTB0 | 1 << PORTB5); // Activate LED and buzzer
 
@@ -280,9 +282,11 @@ ISR(INT0_vect) {
             finishRecording();
         }
     }
+
     resetTimer();
 }
 
+// Timer overflow interrupt service routine
 ISR(TIMER2_OVF_vect) {
     timerCount++;
     if (timerCount >= 62) // Approximately 1 ms has passed
@@ -291,11 +295,16 @@ ISR(TIMER2_OVF_vect) {
         msCount++;
     }
     if (msCount >= (21 * T) && morseSequence[0] != '\0') {
+        // After ~4.2s of inactivity, wrap it up
         finishRecording();
     }
 }
 
 void loop() {
+    if (fin) {
+        displayArrayOnLCD(decodedText);
+        fin = false;
+    }
     if (display) {
         LCDDoublePrint(morseSequence, decodedText);
         display = false;
