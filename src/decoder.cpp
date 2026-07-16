@@ -8,31 +8,49 @@ Adafruit_LiquidCrystal lcd(0);
 #define LETTER_SPACE ' '
 #define DOT '.'
 #define DASH '-'
-# define ILLEGAL '#'
+#define ILLEGAL '#'
+
 
 // Time unit (1 dit)
 #define T 200
 
+// Buzzer tone frequency (hz)
+#define BUZZER_FREQUENCY 600
+
+// Static array size - dynamic arrays are bad for embedded development
 #define ARRAY_SIZE 200
 
+// Initiate state screen
 #define GREETING_MORSE "-- --- .-. ... ."
 #define GREETING_TEXT "MORSE"
 
+// LCD dimensions
 #define LCD_ROWS 2
 #define LCD_COLS 16
 
+
 unsigned int timerCount = 0;
 unsigned int msCount = 0;
+unsigned int buzzerCount = 0;
 
-volatile bool display = false;
 
+// 16,000,000 / 1000 = 16,000 ticks per millisecond
+// 16,000 / 256 =  62.5 overflows per millisecond
+unsigned int one_ms = round(F_CPU / 1000 / 256);
+
+// 16,000,000 / 600 = 26,667 ticks per buzzer cycle
+// 26,667 / 2 = 13,333 ticks per buzzer half cycle (on or off)
+// 13,333 / 256 = 52.082 timer overflows per buzzer half cycle
+unsigned int buzzer_half_period = round(F_CPU / BUZZER_FREQUENCY / 2 / 256);
 
 char morseSequence[ARRAY_SIZE] = {}; // Array of morse code symbols
 char decodedText[ARRAY_SIZE] = {}; // Converted morse code sequence as a string
 
 unsigned int i = 0;
 
+volatile bool display = false;
 volatile bool fin = false;
+volatile bool buzzer = false;
 
 // Binary trie of Morse code: each node is one more dot/dash symbol deep,
 // and holds the decoded character once a full code has been matched.
@@ -166,9 +184,9 @@ void setup() {
 
     TCNT2 = 0; // Initialise counter value to 0
 
-    TCCR2B &= ~((1 << CS22) | (1 << CS21)); // Clear prescaler bits
-    TCCR2B |= (1 << CS20);
     // No prescaler
+    TCCR2B &= ~((1 << CS22) | (1 << CS21));
+    TCCR2B |= (1 << CS20);
 
     // 16,000,000 / 1000 = 16,000 ticks per millisecond
     // 16,000 / 256 =  62.5 overflows per millisecond
@@ -220,8 +238,7 @@ void morseDecode(const char *sequence, const unsigned int length) {
             continue;
         }
 
-        const char decoded = morseTree.decodeLetter(sequence, length, j);
-        if (decoded != '\0') {
+        if (const char decoded = morseTree.decodeLetter(sequence, length, j); decoded != '\0') {
             decodedText[k++] = decoded;
         }
 
@@ -255,7 +272,7 @@ void LCDPrintWrap(const char *str) {
         if (column == LCD_COLS && row < LCD_ROWS - 1) {
             row++;
             column = 0;
-            lcd.setCursor(0, row);
+            lcd.setCursor(column, row);
         }
         // Stop printing if the entire screen (32 chars) is full
         else if (column == LCD_COLS && row == LCD_ROWS - 1) break;
@@ -281,9 +298,7 @@ void finishRecording() {
     morseDecode(morseSequence, i);
 
     // Reset morse sequence
-    while (i > 0) {
-        morseSequence[--i] = '\0';
-    }
+    while (i > 0) morseSequence[--i] = '\0';
     resetTimer();
     fin = true;
     display = false;
@@ -296,9 +311,10 @@ ISR(INT0_vect) {
     else {
         // Rising Edge
         if (PIND & (1 << PIND2)) {
-            PORTB |= (1 << PORTB0 | 1 << PORTB5); // Activate LED and buzzer
+            PORTB |= (1 << PORTB5); // Activate LED and buzzer
+            buzzer = true;
 
-            if (msCount >= (2.5 * T) && msCount < (7 * T) && i > 0 && morseSequence[i - 1] != ' ')
+            if (msCount >= (2.5 * T) && msCount < (7 * T) && i > 0 && morseSequence[i - 1] != LETTER_SPACE)
                 morseSequence[i++] = LETTER_SPACE;
             if (msCount >= (7 * T) && msCount < (21 * T) && i > 0)
                 morseSequence[i++] = WHITESPACE;
@@ -310,8 +326,9 @@ ISR(INT0_vect) {
 
         // Falling Edge
         else {
+            PORTB &= ~(1 << PORTB5); // Deactivate LED and buzzer
+            buzzer = false;
             morseSequence[i] = discriminateSignal(msCount);
-            PORTB &= ~(1 << PORTB0 | 1 << PORTB5); // Deactivate LED and buzzer
             if (morseSequence[i] != '\0') {
                 display = true;
                 i++;
@@ -327,13 +344,27 @@ ISR(INT0_vect) {
 // Timer overflow interrupt service routine
 ISR(TIMER2_OVF_vect) {
     timerCount++;
-    if (timerCount >= 62) // Approximately 1 ms has passed
+    if (timerCount >= one_ms) // Approximately 1 ms has passed
     {
         timerCount = 0;
         msCount++;
     }
+
+    // Enable buzzer if buzzer flag is on
+    if (buzzer) {
+        buzzerCount++;
+        if (buzzerCount >= buzzer_half_period) {
+            buzzerCount = 0;
+            PORTB ^= (1 << PORTB0); // Toggle buzzer pin
+        }
+    } else {
+        PORTB &= ~(1 << PORTB0); // Ensure buzzer pin is low
+        buzzerCount = 0;
+    }
+
+
+    // After ~4.2s of inactivity, wrap it up
     if (msCount >= (21 * T) && morseSequence[0] != '\0') {
-        // After ~4.2s of inactivity, wrap it up
         finishRecording();
     }
 }
