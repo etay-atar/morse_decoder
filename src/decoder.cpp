@@ -15,7 +15,7 @@ Adafruit_LiquidCrystal lcd(0);
 #define T 200
 
 // Buzzer tone frequency (hz)
-#define BUZZER_FREQUENCY 600
+#define BUZZER_FREQUENCY 700
 
 // Static array size - dynamic arrays are bad for embedded development
 #define ARRAY_SIZE 200
@@ -29,8 +29,8 @@ Adafruit_LiquidCrystal lcd(0);
 #define LCD_COLS 16
 
 
-unsigned int timerCount = 0;
-unsigned int msCount = 0;
+volatile unsigned int timerCount = 0;
+volatile unsigned int msCount = 0;
 unsigned int buzzerCount = 0;
 
 
@@ -46,8 +46,9 @@ unsigned int buzzer_half_period = round(F_CPU / BUZZER_FREQUENCY / 2 / 256);
 char morseSequence[ARRAY_SIZE] = {}; // Array of morse code symbols
 char decodedText[ARRAY_SIZE] = {}; // Converted morse code sequence as a string
 
-unsigned int i = 0;
+volatile unsigned int i = 0;
 
+// Global flags to handle CPU heavy operations outside the ISRs
 volatile bool display = false;
 volatile bool fin = false;
 volatile bool buzzer = false;
@@ -188,9 +189,6 @@ void setup() {
     TCCR2B &= ~((1 << CS22) | (1 << CS21));
     TCCR2B |= (1 << CS20);
 
-    // 16,000,000 / 1000 = 16,000 ticks per millisecond
-    // 16,000 / 256 =  62.5 overflows per millisecond
-
     TIMSK2 |= (1 << TOIE2); // Enable timer overflow interrupt
 
 
@@ -214,12 +212,8 @@ void resetTimer() {
 }
 
 char discriminateSignal(const unsigned int duration) {
-    if (duration < (2 * T)) {
-        return DOT;
-    }
-    if (duration < (5 * T)) {
-        return DASH;
-    }
+    if (duration < (2 * T)) return DOT;
+    if (duration < (5 * T)) return DASH;
     return '\0'; // Invalid signal or stop
 }
 
@@ -293,21 +287,11 @@ void LCDDoublePrint(const char *str1, const char *str2) {
     lcd.print(str2);
 }
 
-// Display result and reset
-void finishRecording() {
-    morseDecode(morseSequence, i);
-
-    // Reset morse sequence
-    while (i > 0) morseSequence[--i] = '\0';
-    resetTimer();
-    fin = true;
-    display = false;
-}
 
 // Button interrupt
 ISR(INT0_vect) {
     fin = false;
-    if (i >= ARRAY_SIZE) finishRecording();
+    if (i >= ARRAY_SIZE) fin = true;
     else {
         // Rising Edge
         if (PIND & (1 << PIND2)) {
@@ -320,7 +304,7 @@ ISR(INT0_vect) {
                 morseSequence[i++] = WHITESPACE;
             if (msCount >= (21 * T)) {
                 morseSequence[i] = '\0'; // Stop signal
-                finishRecording();
+                fin = true;
             }
         }
 
@@ -328,14 +312,12 @@ ISR(INT0_vect) {
         else {
             PORTB &= ~(1 << PORTB5); // Deactivate LED and buzzer
             buzzer = false;
+
             morseSequence[i] = discriminateSignal(msCount);
             if (morseSequence[i] != '\0') {
                 display = true;
                 i++;
-                morseDecode(morseSequence, i);
-            } else {
-                finishRecording();
-            }
+            } else fin = true;
         }
         resetTimer();
     }
@@ -351,6 +333,7 @@ ISR(TIMER2_OVF_vect) {
     }
 
     // Enable buzzer if buzzer flag is on
+    // Note: the `tone()` function utilises interrupt 2, so we couldn't use it.
     if (buzzer) {
         buzzerCount++;
         if (buzzerCount >= buzzer_half_period) {
@@ -362,19 +345,24 @@ ISR(TIMER2_OVF_vect) {
         buzzerCount = 0;
     }
 
-
     // After ~4.2s of inactivity, wrap it up
-    if (msCount >= (21 * T) && morseSequence[0] != '\0') {
-        finishRecording();
-    }
+    if (msCount >= (21 * T) && morseSequence[0] != '\0') fin = true;
 }
 
 void loop() {
+    // Display result and reset
     if (fin) {
+        morseDecode(morseSequence, i);
+        // Reset morse sequence
+        while (i > 0) morseSequence[--i] = '\0';
+        resetTimer();
+        display = false;
+        buzzer = false;
         LCDPrintWrap(decodedText);
         fin = false;
     }
     if (display) {
+        morseDecode(morseSequence, i);
         LCDDoublePrint(morseSequence, decodedText);
         display = false;
     }
