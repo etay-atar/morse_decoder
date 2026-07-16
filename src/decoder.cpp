@@ -290,21 +290,22 @@ void LCDDoublePrint(const char *str1, const char *str2) {
 
 // Button interrupt
 ISR(INT0_vect) {
-    fin = false;
     if (i >= ARRAY_SIZE) fin = true;
     else {
         // Rising Edge
         if (PIND & (1 << PIND2)) {
             PORTB |= (1 << PORTB5); // Activate LED and buzzer
             buzzer = true;
-
-            if (msCount >= (2.5 * T) && msCount < (7 * T) && i > 0 && morseSequence[i - 1] != LETTER_SPACE)
-                morseSequence[i++] = LETTER_SPACE;
-            if (msCount >= (7 * T) && msCount < (21 * T) && i > 0)
-                morseSequence[i++] = WHITESPACE;
-            if (msCount >= (21 * T)) {
-                morseSequence[i] = '\0'; // Stop signal
-                fin = true;
+            if (i > 0) {
+                // Ignore first pause
+                if (msCount >= (2.5 * T) && msCount < (7 * T) && morseSequence[i - 1] != LETTER_SPACE)
+                    morseSequence[i++] = LETTER_SPACE;
+                if (msCount >= (7 * T) && msCount < (21 * T))
+                    morseSequence[i++] = WHITESPACE;
+                if (msCount >= (21 * T)) {
+                    morseSequence[i] = '\0'; // Stop signal
+                    fin = true;
+                }
             }
         }
 
